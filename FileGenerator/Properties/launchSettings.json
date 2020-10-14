@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "FileGenerator": {
+      "commandName": "Project",
+      "commandLineArgs": "-size=10485760 -alg=fast"
+    }
+  }
+}
