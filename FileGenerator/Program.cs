@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.Serialization.Formatters;
+using System.Text;
 using System.Threading.Tasks;
 
 namespace FileGenerator
@@ -36,10 +37,19 @@ namespace FileGenerator
 
             try
             {
+                StringBuilder sb = new StringBuilder(1500);
                 foreach (var line in algorithm.TextGenerator)
                 {
-                    await Console.Out.WriteAsync(line);
+                    sb.Append(line);
+                    if (sb.Length > 1024)
+                    {
+                        await Console.Out.WriteAsync(sb.ToString());
+                        sb.Clear();
+                    }
                 }
+
+                if (sb.Length > 0)
+                    await Console.Out.WriteAsync(sb.ToString());
             }
             catch (Exception ex)
             {
