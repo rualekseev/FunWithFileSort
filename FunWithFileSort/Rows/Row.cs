@@ -21,6 +21,7 @@ namespace FunWithFileSort
 
         private readonly string _template = $"{{0}}. {{1}}{Environment.NewLine}";
         private string _rowAsString { get; set; }
+        private int? _rowByteCount { get; set; }
         
         public readonly LeftPartRow LeftPart;
         public readonly RightPartRow RightPart;
@@ -44,7 +45,11 @@ namespace FunWithFileSort
 
         public int GetSizeInBytes()
         {
-            return Encoding.Default.GetByteCount(GetRowAsString());
+            // Encoding.GetByteCount is slowly
+            if (_rowByteCount.HasValue == false)
+                _rowByteCount = Encoding.Default.GetByteCount(GetRowAsString());
+
+            return _rowByteCount.Value;
         }
 
         public int CompareTo(Row other)
