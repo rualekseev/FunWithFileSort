@@ -8,6 +8,8 @@ namespace FunWithFileSort
 {
     public class RightPartRow:IComparable<RightPartRow>
     {
+
+        private static readonly RightPartRow _rightPartRow = new RightPartRow(string.Empty);
         private static readonly Random _random = new Random();
 
 
@@ -39,7 +41,7 @@ namespace FunWithFileSort
         {
             get
             {
-                return new RightPartRow(string.Empty);
+                return _rightPartRow;
             }
         }
 

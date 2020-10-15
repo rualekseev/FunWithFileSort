@@ -7,12 +7,12 @@ namespace FunWithFileSort
     {
         #region static
 
+        private static readonly Row _row = new Row(LeftPartRow.Empty, RightPartRow.Empty);
         public static Row Empty
         {
             get
-
             {
-                return new Row(LeftPartRow.Empty, RightPartRow.Empty);
+                return _row;
             }
         }
 

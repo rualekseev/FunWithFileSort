@@ -6,6 +6,7 @@ namespace FunWithFileSort
 {
     public class LeftPartRow:IComparable<LeftPartRow>
     {
+        private static readonly LeftPartRow _leftPartRow = new LeftPartRow("0");
         private static readonly Random _random = new Random();
 
         public static LeftPartRow GetRandom()
@@ -40,7 +41,7 @@ namespace FunWithFileSort
         {
             get
             {
-                return new LeftPartRow("0");
+                return _leftPartRow;
             }
         }
 
