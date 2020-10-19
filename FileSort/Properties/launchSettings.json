@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "FileSort": {
+      "commandName": "Project",
+      "commandLineArgs": "-file=F:\\Apps\\result.txt -alg=merge"
+    }
+  }
+}

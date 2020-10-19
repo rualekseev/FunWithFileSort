@@ -1,5 +1,5 @@
 ﻿$watch = [System.Diagnostics.Stopwatch]::StartNew()
 $watch.Start()
-./FileGenerator.exe -size=10485760 -alg=rand | Set-Content -Path result.txt
+./FileSort.exe -file=F:\Apps\result.txt -alg=insertion
 $watch.Stop()
 Write-Host $watch.Elapsed
