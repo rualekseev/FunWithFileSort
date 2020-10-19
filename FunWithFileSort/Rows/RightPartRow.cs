@@ -18,7 +18,7 @@ namespace FunWithFileSort
         /// </summary>
         public static RightPartRow GetRandom()
         {
-            return RightPartRow.GetRandom(_random.Next(1, 30));
+            return RightPartRow.GetRandom(_random.Next(5, 80));
         }
 
         public static RightPartRow GetRandom(int lenght)
