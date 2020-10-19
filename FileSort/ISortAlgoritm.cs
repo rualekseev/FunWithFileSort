@@ -1,11 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace FileSort
 {
     interface ISortAlgoritm
     {
-        void Run(string filename);
+        Task Run(string filename);
     }
 }

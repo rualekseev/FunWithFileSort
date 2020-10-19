@@ -34,7 +34,7 @@ namespace FileSort
                 return;
             }
 
-            algorithm.SortAlgoritm.Run(algorithm.FileName);
+            algorithm.SortAlgoritm.Run(algorithm.FileName).Wait();
         }
 
         private static bool TryParseArgs(string[] args, out Algorithm algorithm)

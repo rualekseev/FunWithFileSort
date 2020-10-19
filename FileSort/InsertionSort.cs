@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace FileSort
 {
@@ -16,20 +17,20 @@ namespace FileSort
             _sortedFileName = Path.Combine(tempDirectory, "sorted.txt");
         }
 
-        public void Run(string fileName)
+        public async Task Run(string fileName)
         {
             var sr = new StreamReader(fileName);
 
-            string line = sr.ReadLine();
+            string line = await sr.ReadLineAsync();
             if (line == null)
                 return;
             // write first line to file
             using (var sw = new StreamWriter(_sortedFileName))
             {
-                sw.WriteLine(line);
+                await sw.WriteAsync(line);
             }
 
-            while ((line = sr.ReadLine()) != null)
+            while ((line = await sr.ReadLineAsync()) != null)
             {
                 InsertToSortedFile(line);
             }

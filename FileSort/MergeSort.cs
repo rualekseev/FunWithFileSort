@@ -1,8 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
+using System.Threading;
 
 namespace FileSort
 {
@@ -11,189 +14,229 @@ namespace FileSort
         private readonly string _tempDirectory;
         private string _sortedFileName;
 
+        // last object will be smaller
+        private ConcurrentStack<FilePart> _filesToSplit = new ConcurrentStack<FilePart>();
+        private volatile bool _splitEnded = false;
+
+        // TODO use bag with sort by filesize
+        private ConcurrentQueue<FilePart> _filesToMerge = new ConcurrentQueue<FilePart>();
+
         public MergeSort(string tempDirectory)
         {
             _tempDirectory = tempDirectory ?? throw new ArgumentNullException(nameof(tempDirectory));
             _sortedFileName = Path.Combine(tempDirectory, "sorted.txt");
         }
 
-        public void Run(string filename)
+        public async Task Run(string filename)
+        {
+            // can't spit file if it has zero or one rows
+            if (await TryFileSpit(filename) == false)
+            {
+                MoveFileToSplitResult(filename);
+            }
+
+            var taskToSplit = Task.Run(() => SplitTasksManager(1));
+            var taskToMerge = Task.Run(() => MergeTasksManager(8));
+
+            Task.WaitAll(taskToSplit, taskToMerge);
+        }
+
+        public async Task SplitTasksManager(int maxTasksCount)
+        {
+            List<Task> tasks = new List<Task>(maxTasksCount);
+            for (int i = 0; i < maxTasksCount; i++)
+            {
+                tasks.Add(Task.Run(SplitFiles));
+            }
+
+            do
+            {
+                for (int i = 0; i < tasks.Count; i++)
+                {
+                    if (tasks[i].IsCompleted == false)
+                        continue;
+
+                    tasks[i] = Task.Run(SplitFiles);
+                }
+                await Task.Delay(TimeSpan.FromSeconds(2));
+            }
+            while ((_filesToSplit.IsEmpty == true && tasks.All(x => x.IsCompleted == true)) == false);
+
+            _splitEnded = true;
+        }
+        public async Task SplitFiles()
+        {
+            while (_filesToSplit.TryPop(out FilePart file))
+            {
+                if (await TryFileSpit(file.FileName) == false)
+                {
+                    AddFilePart(file);
+                }
+                else
+                {
+                    File.Delete(file.FileName);
+                }
+            }
+        }
+
+        async Task MergeTasksManager(int maxTasksCount)
         {
             var files = new List<FilePart>();
-            var newfileName1 = Path.Combine(_tempDirectory, Path.GetRandomFileName());
-            var newfileName2 = Path.Combine(_tempDirectory, Path.GetRandomFileName());
-            var filesplitResult = FileSpit(filename, newfileName1, newfileName2);
-            if (filesplitResult.Success == false)
+            List<Task> tasks = new List<Task>(maxTasksCount);
+            for (int i = 0; i < maxTasksCount; i++)
             {
-                File.Delete(newfileName1);
-                File.Delete(newfileName2);
+                tasks.Add(null);
             }
 
-            while (filesplitResult.Success)
+            do
             {
-                var prevFile1Split = filesplitResult.FilePart1;
-                var prevFile2Split = filesplitResult.FilePart2;
+                while (_filesToMerge.TryDequeue(out FilePart filePart))
+                    files.Add(filePart);
 
-                newfileName1 = Path.Combine(_tempDirectory, Path.GetRandomFileName());
-                newfileName2 = Path.Combine(_tempDirectory, Path.GetRandomFileName());
-                filesplitResult = FileSpit(prevFile1Split.FileName, newfileName1, newfileName2);
-                if (filesplitResult.Success == false)
+                files = files.OrderBy(x => x.LineCount).ToList();
+
+                for (int i = 0; i < tasks.Count; i++)
                 {
-                    files.Add(prevFile1Split);
-                    files.Add(prevFile2Split);
-
-                    File.Delete(newfileName1);
-                    File.Delete(newfileName2);
-                }
-                else
-                {
-                    File.Delete(prevFile1Split.FileName);
-                    files.Add(prevFile2Split);
-                }
-            }
-
-            while (files.Count(x => x.IsSorted == false) != 0)
-            {
-                var fileForMergeGroups = files.Where(x => x.IsSorted).GroupBy(x => x.LineCount).ToList();
-                foreach (var fileForMerge in fileForMergeGroups)
-                {
-                    if (fileForMerge.Count() < 2)
-                        continue;
-                    var firstFile = fileForMerge.First();
-                    var lastFile = fileForMerge.Last();
-
-                    var mergeResultfile = Merge(firstFile, lastFile);
-                    files.Remove(firstFile);
-                    files.Remove(lastFile);
-                    File.Delete(firstFile.FileName);
-                    File.Delete(lastFile.FileName);
-                    files.Add(mergeResultfile);
-                }
-
-                var minUnsortedFile = files.First(x => x.IsSorted == false && x.LineCount == (files.Where(x => x.IsSorted == false).Min(x => x.LineCount)));
-                if (minUnsortedFile != null)
-                {
-                    newfileName1 = Path.Combine(_tempDirectory, Path.GetRandomFileName());
-                    newfileName2 = Path.Combine(_tempDirectory, Path.GetRandomFileName());
-                    var fileSplitResult = FileSpit(minUnsortedFile.FileName, newfileName1, newfileName2);
-                    if (fileSplitResult.Success)
+                    if (tasks[i] == null)
                     {
-                        files.Add(fileSplitResult.FilePart1);
-                        files.Add(fileSplitResult.FilePart2);
-                        files.Remove(minUnsortedFile);
-                        File.Delete(minUnsortedFile.FileName);
+                        if (files.Count > 1)
+                        {
+                            var file1 = files[0];
+                            var file2 = files[1];
+                            files.Remove(file1);
+                            files.Remove(file2);
+                            tasks[i] = Task.Run(() => Merge(file1, file2));
+                        }
+                        continue;
+                    }
+
+                    if (tasks[i].IsCompleted == false)
+                        continue;
+
+                    if (files.Count > 1)
+                    {
+                        var file1 = files[0];
+                        var file2 = files[1];
+                        files.Remove(file1);
+                        files.Remove(file2);
+                        tasks[i] = Task.Run(() => Merge(file1, file2));
                     }
                 }
-            }
+            } while (
+            (_splitEnded == true
+            && _filesToMerge.Count == 1
+            && tasks.Where(x => x != null).All(x => x.IsCompleted == true)) == false);
 
-            while(files.Count() > 0)
-            {
-                if (files.Count() == 1)
-                {
-                    File.Move(files.Single().FileName, _sortedFileName);
-                    return;
-                }
-                var firstFile = files.First();
-                var lastFile = files.Last();
 
-                var mergeResultfile = Merge(firstFile, lastFile);
-                files.Remove(firstFile);
-                files.Remove(lastFile);
-                File.Delete(firstFile.FileName);
-                File.Delete(lastFile.FileName);
-                files.Add(mergeResultfile);
-            }
+            MoveFileToSplitResult(files.Single().FileName);
         }
 
-        FileSplitResult FileSpit(string filePath, string newFile1, string newFile2)
+        async Task<bool> TryFileSpit(string fileToSplitPath)
         {
+            var file1Name = Path.Combine(_tempDirectory, Path.GetRandomFileName());
+            var file2Name = Path.Combine(_tempDirectory, Path.GetRandomFileName());
+            int file1LineCount = 0;
+            int file2LineCount = 0;
 
-
-            using var sr = new StreamReader(filePath);
-            using var sw1 = new StreamWriter(newFile1);
-            using var sw2 = new StreamWriter(newFile2);
-            int lineCountFile1 = 0;
-            int lineCountFile2 = 0;
-            bool even = false;
-            string line;
-            while ((line = sr.ReadLine()) != null)
+            using (var sr = new StreamReader(fileToSplitPath))
+            using (var sw1 = new StreamWriter(file1Name))
+            using (var sw2 = new StreamWriter(file2Name))
             {
-                if (even)
+                bool even = false;
+                string line;
+                while ((line = await sr.ReadLineAsync()) != null)
                 {
-                    sw2.WriteLine(line);
-                    lineCountFile2++;
+                    if (even)
+                    {
+                        await sw2.WriteLineAsync(line);
+                        file2LineCount++;
+                    }
+                    else
+                    {
+                        await sw1.WriteLineAsync(line);
+                        file1LineCount++;
+                    }
+                    even = !even;
                 }
-                else
-                {
-                    sw1.WriteLine(line);
-                    lineCountFile1++;
-                }
-                even = !even;
             }
 
-            if (lineCountFile1 > 0 && lineCountFile2 > 0)
+            if (file1LineCount > 0 && file2LineCount > 0)
             {
-                return new FileSplitResult(true, new FilePart(newFile1, lineCountFile1), new FilePart(newFile2, lineCountFile2));
+                AddFilePart(new FilePart(file1Name, file1LineCount, new FileInfo(file1Name).Length));
+                AddFilePart(new FilePart(file2Name, file2LineCount, new FileInfo(file2Name).Length));
+                return true;
             }
-            return new FileSplitResult(false, null, null);
+
+            return false;
         }
 
-        FilePart Merge(FilePart filePart1, FilePart filePart2)
+        async Task Merge(FilePart filePart1, FilePart filePart2)
         {
             string path = Path.Combine(_tempDirectory, Path.GetRandomFileName());
-            using var sr1 = new StreamReader(filePart1.FileName);
-            using var sr2 = new StreamReader(filePart2.FileName);
-            using var sw = new StreamWriter(path);
             int lineCount = 0;
-            var linFromFile1 = sr1.ReadLine();
-            var linFromFile2 = sr2.ReadLine();
-            while ((linFromFile1 == null && linFromFile2 == null) == false)
+            using (var sr1 = new StreamReader(filePart1.FileName))
+            using (var sr2 = new StreamReader(filePart2.FileName))
+            using (var sw = new StreamWriter(path))
             {
-                switch (string.Compare(linFromFile1, linFromFile2))
+                var linFromFile1 = await sr1.ReadLineAsync();
+                var linFromFile2 = await sr2.ReadLineAsync();
+                while ((linFromFile1 == null && linFromFile2 == null) == false)
                 {
-                    case -1:
-                        {
-                            sw.WriteLine(linFromFile2);
-                            lineCount++;
-                            linFromFile2 = null;
-                            break;
-                        }
-                    case 0:
-                        {
-                            if (linFromFile1 == null && linFromFile2 == null)
+                    switch (string.Compare(linFromFile1, linFromFile2))
+                    {
+                        case -1:
+                            {
+                                await sw.WriteLineAsync(linFromFile2);
+                                lineCount++;
+                                linFromFile2 = null;
                                 break;
+                            }
+                        case 0:
+                            {
+                                if (linFromFile1 == null && linFromFile2 == null)
+                                    break;
 
-                            sw.WriteLine(linFromFile1);
-                            lineCount++;
-                            linFromFile1 = null;
-                            break;
-                        }
-                    case 1:
-                        {
-                            sw.WriteLine(linFromFile1);
-                            lineCount++;
-                            linFromFile1 = null;
-                            break;
-                        }
-                    default:
-                        {
-                            throw new Exception($"unknown compare result");
-                        }
+                                await sw.WriteLineAsync(linFromFile1);
+                                lineCount++;
+                                linFromFile1 = null;
+                                break;
+                            }
+                        case 1:
+                            {
+                                await sw.WriteLineAsync(linFromFile1);
+                                lineCount++;
+                                linFromFile1 = null;
+                                break;
+                            }
+                        default:
+                            {
+                                throw new Exception($"unknown compare result");
+                            }
+                    }
+
+                    if (linFromFile1 == null)
+                        linFromFile1 = await sr1.ReadLineAsync();
+                    if (linFromFile2 == null)
+                        linFromFile2 = await sr2.ReadLineAsync();
                 }
-
-                if (linFromFile1 == null)
-                    linFromFile1 = sr1.ReadLine();
-                if (linFromFile2 == null)
-                    linFromFile2 = sr2.ReadLine();
             }
 
-            if (filePart1.LineCount + filePart2.LineCount != lineCount)
-            {
-                int zzzz = 2;
-                zzzz++;
-            }
-            return new FilePart(path, lineCount, true);
+            AddFilePart (new FilePart(path, lineCount, new FileInfo(path).Length, true));
+            File.Delete(filePart1.FileName);
+            File.Delete(filePart2.FileName);
         }
 
+        void AddFilePart(FilePart filePart)
+        {
+            if (filePart.IsSorted)
+                _filesToMerge.Enqueue(filePart);
+            else
+                _filesToSplit.Push(filePart);
+        }
+
+        void MoveFileToSplitResult(string filename)
+        {
+            File.Move(filename, _sortedFileName);
+        }
     }
 }

@@ -1,27 +1,25 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace FileSort
+﻿namespace FileSort
 {
-    class FilePart
+    struct FilePart
     {
         public readonly string FileName;
         public readonly int LineCount;
-
+        public readonly long FileSize;
         public readonly bool IsSorted;
 
-        public FilePart(string fileName, int lineCount)
+        public FilePart(string fileName, int lineCount, long fileSize)
         {
             FileName = fileName;
             LineCount = lineCount;
-            IsSorted = LineCount == 1;
+            FileSize = fileSize;
+            IsSorted = LineCount <= 1;
         }
 
-        public FilePart(string fileName, int lineCount, bool IsSorter)
+        public FilePart(string fileName, int lineCount, long fileSize,bool IsSorter)
         {
             FileName = fileName;
             LineCount = lineCount;
+            FileSize = fileSize;
             IsSorted = IsSorter;
         }
 
