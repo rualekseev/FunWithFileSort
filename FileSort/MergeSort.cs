@@ -43,7 +43,7 @@ namespace FileSort
             }
 
             var taskToSplit = Task.Run(() => SplitTasksManager(2));
-            var taskToSort = Task.Run(() => SortTasksManager(1));
+            var taskToSort = Task.Run(() => SortTasksManager(2));
             var taskToMerge = Task.Run(() => MergeTasksManager(2));
 
             Task.WaitAll(taskToSplit, taskToSort, taskToMerge);
@@ -296,7 +296,7 @@ namespace FileSort
                 return;
             }
 
-            if (filePart.FileSize <= 25*1024*1024)
+            if (filePart.FileSize <= 16*1024*1024)
             {
                 _filesToSort.Push(filePart);
                 return;
