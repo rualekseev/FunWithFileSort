@@ -117,12 +117,20 @@ namespace FileSort
         {
             while (_filesToSort.TryPop(out FilePart file))
             {
-                var insertionSort = new InsertionSort(_tempDirectory);
-                var fileName =  insertionSort.Run(file.FileName).Result;
+                using(var sr = new StreamReader(file.FileName))
+                {
+                    var lines = File.ReadAllLines(file.FileName);
+                    Array.Sort(lines);
+
+                    var fileName = Path.Combine(_tempDirectory, Path.GetRandomFileName());
+                    using (var sw = new StreamWriter(fileName))
+                    {
+                        foreach (var line in lines)
+                            sw.WriteLine(line);
+                    }
+                    AddFilePart(new FilePart(fileName, lines.Length, new FileInfo(fileName).Length, true));
+                }
                 File.Delete(file.FileName);
-                File.Move(fileName, file.FileName);
-                file.SetSorted();
-                AddFilePart(file);
             }
         }
 
@@ -282,7 +290,7 @@ namespace FileSort
                 return;
             }
 
-            if (filePart.FileSize < 1024*20)
+            if (filePart.FileSize <= 20*1024)
             {
                 _filesToSort.Push(filePart);
                 return;
