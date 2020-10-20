@@ -7,6 +7,6 @@ namespace FileSort
 {
     interface ISortAlgoritm
     {
-        Task Run(string filename);
+        Task<string> Run(string filename);
     }
 }

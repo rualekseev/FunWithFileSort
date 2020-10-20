@@ -14,26 +14,31 @@ namespace FileSort
         public InsertionSort(string tempDirectory)
         {
             _tempDirectory = tempDirectory ?? throw new ArgumentNullException(nameof(tempDirectory));
-            _sortedFileName = Path.Combine(tempDirectory, "sorted.txt");
+            _sortedFileName = Path.Combine(tempDirectory, Path.GetRandomFileName());
         }
 
-        public async Task Run(string fileName)
+        public async Task<string> Run(string fileName)
         {
-            var sr = new StreamReader(fileName);
-
-            string line = await sr.ReadLineAsync();
-            if (line == null)
-                return;
-            // write first line to file
-            using (var sw = new StreamWriter(_sortedFileName))
+            using (var sr = new StreamReader(fileName))
             {
-                await sw.WriteAsync(line);
-            }
+                string line = await sr.ReadLineAsync();
+                if (line == null)
+                {
+                    File.Move(fileName, _sortedFileName);
+                    return _sortedFileName;
+                }
+                // write first line to file
+                using (var sw = new StreamWriter(_sortedFileName))
+                {
+                    await sw.WriteAsync(line);
+                }
 
-            while ((line = await sr.ReadLineAsync()) != null)
-            {
-                InsertToSortedFile(line);
+                while ((line = await sr.ReadLineAsync()) != null)
+                {
+                    InsertToSortedFile(line);
+                }
             }
+            return _sortedFileName;
         }
 
         private void InsertToSortedFile(string insertLine)
@@ -46,7 +51,7 @@ namespace FileSort
                 var line = string.Empty;
                 while((line = sr.ReadLine()) != null)
                 {
-                    if (string.Compare(line, insertLine) == 1)
+                    if (string.Compare(line, insertLine ) == 1)
                     {
                         lineInsered = true;
                         sw.WriteLine(insertLine);

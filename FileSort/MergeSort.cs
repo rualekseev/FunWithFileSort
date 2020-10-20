@@ -12,14 +12,17 @@ namespace FileSort
     class MergeSort: ISortAlgoritm
     {
         private readonly string _tempDirectory;
-        private string _sortedFileName;
+        private readonly string _sortedFileName;
 
         // last object will be smaller
-        private ConcurrentStack<FilePart> _filesToSplit = new ConcurrentStack<FilePart>();
+        private readonly ConcurrentStack<FilePart> _filesToSplit = new ConcurrentStack<FilePart>();
         private volatile bool _splitEnded = false;
 
+        private readonly ConcurrentStack<FilePart> _filesToSort = new ConcurrentStack<FilePart>();
+        private volatile bool _sortEnded = false;
+
         // TODO use bag with sort by filesize
-        private ConcurrentQueue<FilePart> _filesToMerge = new ConcurrentQueue<FilePart>();
+        private readonly ConcurrentQueue<FilePart> _filesToMerge = new ConcurrentQueue<FilePart>();
 
         public MergeSort(string tempDirectory)
         {
@@ -27,18 +30,21 @@ namespace FileSort
             _sortedFileName = Path.Combine(tempDirectory, "sorted.txt");
         }
 
-        public async Task Run(string filename)
+        public async Task<string> Run(string filename)
         {
             // can't spit file if it has zero or one rows
             if (await TryFileSpit(filename) == false)
             {
-                MoveFileToSplitResult(filename);
+                MoveFileToSortedFileResult(filename);
+                return _sortedFileName;
             }
 
             var taskToSplit = Task.Run(() => SplitTasksManager(1));
-            var taskToMerge = Task.Run(() => MergeTasksManager(8));
+            var taskToSort = Task.Run(() => SortTasksManager(1));
+            var taskToMerge = Task.Run(() => MergeTasksManager(1));
 
-            Task.WaitAll(taskToSplit, taskToMerge);
+            Task.WaitAll(taskToSplit, taskToSort, taskToMerge);
+            return _sortedFileName;
         }
 
         public async Task SplitTasksManager(int maxTasksCount)
@@ -79,7 +85,49 @@ namespace FileSort
             }
         }
 
-        async Task MergeTasksManager(int maxTasksCount)
+        void SortTasksManager(int maxTasksCount)
+        {
+            var tasks = new List<Task>(maxTasksCount);
+            for (int i = 0; i < maxTasksCount; i++)
+                tasks.Add(null);
+
+            do
+            {
+                for (int i = 0; i < tasks.Count; i++)
+                {
+                    if (tasks[i] == null)
+                    {
+                        tasks[i] = Task.Run(SortFiles);
+                        continue;
+                    }
+
+                    if (tasks[i].IsCompleted == false)
+                        continue;
+
+                    tasks[i] = Task.Run(SortFiles);
+                }
+            }
+            while (
+        (_splitEnded == true
+        && _filesToSort.IsEmpty == true
+        && tasks.Where(x => x != null).All(x => x.IsCompleted == true)) == false);
+
+            _sortEnded = true;
+        }
+        public async void SortFiles()
+        {
+            while (_filesToSort.TryPop(out FilePart file))
+            {
+                var insertionSort = new InsertionSort(_tempDirectory);
+                var fileName =  await insertionSort.Run(file.FileName);
+                File.Delete(file.FileName);
+                File.Move(fileName, file.FileName);
+                file.SetSorted();
+                AddFilePart(file);
+            }
+        }
+
+        void MergeTasksManager(int maxTasksCount)
         {
             var files = new List<FilePart>();
             List<Task> tasks = new List<Task>(maxTasksCount);
@@ -124,11 +172,12 @@ namespace FileSort
                 }
             } while (
             (_splitEnded == true
+            && _sortEnded == true
             && _filesToMerge.Count == 1
             && tasks.Where(x => x != null).All(x => x.IsCompleted == true)) == false);
 
 
-            MoveFileToSplitResult(files.Single().FileName);
+            MoveFileToSortedFileResult(files.Single().FileName);
         }
 
         async Task<bool> TryFileSpit(string fileToSplitPath)
@@ -182,36 +231,32 @@ namespace FileSort
                 var linFromFile2 = await sr2.ReadLineAsync();
                 while ((linFromFile1 == null && linFromFile2 == null) == false)
                 {
-                    switch (string.Compare(linFromFile1, linFromFile2))
+                    if (linFromFile1 == null && linFromFile2 != null)
                     {
-                        case -1:
-                            {
-                                await sw.WriteLineAsync(linFromFile2);
-                                lineCount++;
-                                linFromFile2 = null;
-                                break;
-                            }
-                        case 0:
-                            {
-                                if (linFromFile1 == null && linFromFile2 == null)
-                                    break;
+                        await sw.WriteLineAsync(linFromFile2);
+                        lineCount++;
+                        linFromFile2 = null;
+                    }
 
-                                await sw.WriteLineAsync(linFromFile1);
-                                lineCount++;
-                                linFromFile1 = null;
-                                break;
-                            }
-                        case 1:
-                            {
-                                await sw.WriteLineAsync(linFromFile1);
-                                lineCount++;
-                                linFromFile1 = null;
-                                break;
-                            }
-                        default:
-                            {
-                                throw new Exception($"unknown compare result");
-                            }
+                    if (linFromFile1 != null && linFromFile2 == null)
+                    {
+                        await sw.WriteLineAsync(linFromFile1);
+                        lineCount++;
+                        linFromFile1 = null;
+                    }
+
+                    var stringCompare = string.Compare(linFromFile1, linFromFile2);
+                    if (stringCompare == -1)
+                    {
+                        await sw.WriteLineAsync(linFromFile1);
+                        lineCount++;
+                        linFromFile1 = null;
+                    }
+                    else
+                    {
+                        await sw.WriteLineAsync(linFromFile2);
+                        lineCount++;
+                        linFromFile2 = null;
                     }
 
                     if (linFromFile1 == null)
@@ -229,12 +274,22 @@ namespace FileSort
         void AddFilePart(FilePart filePart)
         {
             if (filePart.IsSorted)
+            {
                 _filesToMerge.Enqueue(filePart);
-            else
-                _filesToSplit.Push(filePart);
+                return;
+            }
+
+            // 2 mb
+            if (filePart.FileSize < 1024*20)
+            {
+                _filesToSort.Push(filePart);
+                return;
+            }
+
+            _filesToSplit.Push(filePart);
         }
 
-        void MoveFileToSplitResult(string filename)
+        void MoveFileToSortedFileResult(string filename)
         {
             File.Move(filename, _sortedFileName);
         }
