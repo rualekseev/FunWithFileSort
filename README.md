@@ -27,30 +27,30 @@
 Стэнд Ubuntu 20.04 x64 8Gb/4CPU/160Gb SSD
 
 Генерация файла linux утилитой
-dd if=/dev/urandom of=result bs=1k count=10485760 seek=0 
+```dd if=/dev/urandom of=result bs=1k count=10485760 seek=0```
 10737418240 bytes (11 GB, 10 GiB) copied, 93.0978 s, 115 MB/s
                                           
-dd if=/dev/urandom of=result bs=512 count=20971520 seek=0
+```dd if=/dev/urandom of=result bs=512 count=20971520 seek=0```
 10737418240 bytes (11 GB, 10 GiB) copied, 119.576 s, 89.8 MB/s
 
-dd if=/dev/urandom of=result bs=64 count=167772160 seek=0
+```dd if=/dev/urandom of=result bs=64 count=167772160 seek=0```
 10737418240 bytes (11 GB, 10 GiB) copied, 495.028 s, 21.7 MB/s
 
 Генерация файла быстрым алгоритмом (это повторяющаяся одна и та же строка)
-./FileGenerator -size=10737418240 -alg=fast >> result
+```./FileGenerator -size=10737418240 -alg=fast >> result```
 Elapsed 499 seconds
 
 
 Генерация файла случайными строками без контролируемых повторений
-./FileGenerator -size=10737418240 -alg=rand >> result
+```./FileGenerator -size=10737418240 -alg=rand >> result```
 Elapsed 1267 seconds
 
 Генерация файла случайными строками без контролируемых повторений (оптимизация по Empty обьектам)
-./FileGenerator -size=10737418240 -alg=rand >> result
+```./FileGenerator -size=10737418240 -alg=rand >> result```
 Elapsed 1181 seconds
 
 Генерация файла случайными строками без контролируемых повторений (кэширую по ~1024 байта перед выводом)
-./FileGenerator -size=10737418240 -alg=rand >> result
+```./FileGenerator -size=10737418240 -alg=rand >> result```
 Elapsed 439 seconds
 (!) быстрый алгоритм с записью по ~1024 байта отработал за 138 seconds. 
 Вывод, оптимизировать создание строки, по записи на диск мы уже добились нужных значений.
