@@ -3,9 +3,7 @@ using System.Collections.Generic;
 using System.Collections.Concurrent;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
-using System.Threading;
 
 namespace FileSort
 {
@@ -39,15 +37,15 @@ namespace FileSort
                 return _sortedFileName;
             }
 
-            var taskToSplit = Task.Run(() => SplitTasksManager(1));
-            var taskToSort = Task.Run(() => SortTasksManager(1));
-            var taskToMerge = Task.Run(() => MergeTasksManager(1));
+            var taskToSplit = Task.Run(() => SplitTasksManager(2));
+            var taskToSort = Task.Run(() => SortTasksManager(2));
+            var taskToMerge = Task.Run(() => MergeTasksManager(4));
 
             Task.WaitAll(taskToSplit, taskToSort, taskToMerge);
             return _sortedFileName;
         }
 
-        public async Task SplitTasksManager(int maxTasksCount)
+        async void SplitTasksManager(int maxTasksCount)
         {
             List<Task> tasks = new List<Task>(maxTasksCount);
             for (int i = 0; i < maxTasksCount; i++)
@@ -70,7 +68,7 @@ namespace FileSort
 
             _splitEnded = true;
         }
-        public async Task SplitFiles()
+        async void SplitFiles()
         {
             while (_filesToSplit.TryPop(out FilePart file))
             {
@@ -114,7 +112,7 @@ namespace FileSort
 
             _sortEnded = true;
         }
-        public async void SortFiles()
+        async void SortFiles()
         {
             while (_filesToSort.TryPop(out FilePart file))
             {
@@ -173,7 +171,8 @@ namespace FileSort
             } while (
             (_splitEnded == true
             && _sortEnded == true
-            && _filesToMerge.Count == 1
+            && files.Count == 1
+            && _filesToMerge.Count == 0
             && tasks.Where(x => x != null).All(x => x.IsCompleted == true)) == false);
 
 
@@ -235,14 +234,16 @@ namespace FileSort
                     {
                         await sw.WriteLineAsync(linFromFile2);
                         lineCount++;
-                        linFromFile2 = null;
+                        linFromFile2 = await sr2.ReadLineAsync();
+                        continue;
                     }
 
                     if (linFromFile1 != null && linFromFile2 == null)
                     {
                         await sw.WriteLineAsync(linFromFile1);
                         lineCount++;
-                        linFromFile1 = null;
+                        linFromFile1 = await sr1.ReadLineAsync();
+                        continue;
                     }
 
                     var stringCompare = string.Compare(linFromFile1, linFromFile2);
@@ -250,19 +251,15 @@ namespace FileSort
                     {
                         await sw.WriteLineAsync(linFromFile1);
                         lineCount++;
-                        linFromFile1 = null;
-                    }
-                    else
-                    {
-                        await sw.WriteLineAsync(linFromFile2);
-                        lineCount++;
-                        linFromFile2 = null;
+                        linFromFile1 = await sr1.ReadLineAsync();
+                        continue;
                     }
 
-                    if (linFromFile1 == null)
-                        linFromFile1 = await sr1.ReadLineAsync();
-                    if (linFromFile2 == null)
-                        linFromFile2 = await sr2.ReadLineAsync();
+                    await sw.WriteLineAsync(linFromFile2);
+                    lineCount++;
+                    linFromFile2 = await sr2.ReadLineAsync();
+                    continue;
+
                 }
             }
 
