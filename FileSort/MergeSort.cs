@@ -32,6 +32,9 @@ namespace FileSort
 
         public Task<string> Run(string filename)
         {
+            if (Directory.Exists(_tempDirectory) == false)
+                Directory.CreateDirectory(_tempDirectory);
+
             // can't spit file if it has zero or one rows
             if (TryFileSpit(filename).Result == false)
             {
