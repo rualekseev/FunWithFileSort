@@ -30,7 +30,8 @@ namespace FileGenerator
                     }
                 case AlgorithmType.RandWithDuplicates:
                     {
-                        throw new NotImplementedException();
+                        TextGenerator = new RandomTextGenerator(filesize, new RowGeneratorWithRepeat(10));
+                        break;
                     }
                 default:
                     throw new ArgumentException($"unknown algorithm {algorithmType}");
