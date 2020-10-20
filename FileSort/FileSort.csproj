@@ -6,6 +6,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\FunWithFileSort\FunWithFileSort.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
     <None Update="Start.ps1">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>

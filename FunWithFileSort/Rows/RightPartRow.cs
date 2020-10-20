@@ -55,7 +55,7 @@ namespace FunWithFileSort
         /// </summary>
         public int CompareTo(RightPartRow other)
         {
-            return string.Compare(this.Value, other.Value, true) * -1;
+            return string.Compare(this.Value, other.Value, true);
         }
 
         public string Value { get; }

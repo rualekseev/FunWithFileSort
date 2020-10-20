@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Threading;
+using FunWithFileSort;
 
 namespace FileSort
 {
@@ -39,7 +40,7 @@ namespace FileSort
             }
 
             var taskToSplit = Task.Run(() => SplitTasksManager(2));
-            var taskToSort = Task.Run(() => SortTasksManager(4));
+            var taskToSort = Task.Run(() => SortTasksManager(1));
             var taskToMerge = Task.Run(() => MergeTasksManager(2));
 
             Task.WaitAll(taskToSplit, taskToSort, taskToMerge);
@@ -119,16 +120,16 @@ namespace FileSort
             {
                 using(var sr = new StreamReader(file.FileName))
                 {
-                    var lines = File.ReadAllLines(file.FileName);
-                    Array.Sort(lines);
+                    var lines = File.ReadAllLines(file.FileName).Select(x=>Row.Parse(x)).ToList();
+                    lines.Sort();
 
                     var fileName = Path.Combine(_tempDirectory, Path.GetRandomFileName());
                     using (var sw = new StreamWriter(fileName))
                     {
                         foreach (var line in lines)
-                            sw.WriteLine(line);
+                            sw.Write(line.GetRowAsString());
                     }
-                    AddFilePart(new FilePart(fileName, lines.Length, new FileInfo(fileName).Length, true));
+                    AddFilePart(new FilePart(fileName, lines.Count, new FileInfo(fileName).Length, true));
                 }
                 File.Delete(file.FileName);
             }
@@ -255,8 +256,10 @@ namespace FileSort
                         continue;
                     }
 
-                    var stringCompare = string.Compare(linFromFile1, linFromFile2);
-                    if (stringCompare == -1)
+                    var row1 = Row.Parse(linFromFile1);
+                    var row2 = Row.Parse(linFromFile2);
+                    var compareResult = row1.CompareTo(row2);
+                    if (compareResult == -1)
                     {
                         await sw.WriteLineAsync(linFromFile1);
                         lineCount++;
@@ -290,7 +293,7 @@ namespace FileSort
                 return;
             }
 
-            if (filePart.FileSize <= 20*1024)
+            if (filePart.FileSize <= 25*1024*1024)
             {
                 _filesToSort.Push(filePart);
                 return;

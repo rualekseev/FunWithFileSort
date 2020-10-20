@@ -64,13 +64,13 @@ namespace FunWithFileSort
             var lenghtDiff = this.Value.Length - other.Value.Length;
 
             if (lenghtDiff < 0)
-                return 1;
-
-            if (lenghtDiff > 0)
                 return -1;
 
+            if (lenghtDiff > 0)
+                return 1;
+
             // need to compare by value;
-            return this.Value.CompareTo(other.Value) * -1;
+            return this.Value.CompareTo(other.Value);
         }
     }
 }

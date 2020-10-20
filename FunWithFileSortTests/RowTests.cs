@@ -14,6 +14,28 @@ namespace FunWithFileSortTests
 
 
         [Test]
+
+        public void Create_Row_Correct()
+        {
+            var str = "12345. asdfgh hfddfg";
+            var succes = Row.TryParse(str, out Row row);
+            Assert.AreEqual(true, succes);
+            Assert.AreEqual(1, string.Compare(str, row.GetRowAsString()));
+        }
+
+        [Test]
+        [TestCase("12343444 sdf sdf sdf")]
+        [TestCase("ssadad . sad asd. sad sad. asdsad")]
+        [TestCase(null)]
+        [TestCase("")]
+        public void Create_Row_Unsuccess(string  str)
+        {
+            var succes = Row.TryParse(str, out Row row);
+            Assert.AreEqual(false, succes);
+            Assert.AreEqual(null, row);
+        }
+
+        [Test]
         public void Empty_Value_Correct()
         {
             var row = Row.Empty;
@@ -44,45 +66,45 @@ namespace FunWithFileSortTests
         public void Compare_Correct()
         {
             Assert.AreEqual(0, Row.Empty.CompareTo(Row.Empty));
-            Assert.AreEqual(1, Row.Empty.CompareTo(Row1));
-            Assert.AreEqual(1, Row.Empty.CompareTo(Row2));
-            Assert.AreEqual(1, Row.Empty.CompareTo(Row3));
-            Assert.AreEqual(1, Row.Empty.CompareTo(Row4));
-            Assert.AreEqual(1, Row.Empty.CompareTo(Row5));
+            Assert.AreEqual(-1, Row.Empty.CompareTo(Row1));
+            Assert.AreEqual(-1, Row.Empty.CompareTo(Row2));
+            Assert.AreEqual(-1, Row.Empty.CompareTo(Row3));
+            Assert.AreEqual(-1, Row.Empty.CompareTo(Row4));
+            Assert.AreEqual(-1, Row.Empty.CompareTo(Row5));
 
-            Assert.AreEqual(-1, Row1.CompareTo(Row.Empty));
+            Assert.AreEqual(1, Row1.CompareTo(Row.Empty));
             Assert.AreEqual(0, Row1.CompareTo(Row1));
-            Assert.AreEqual(1, Row1.CompareTo(Row2));
-            Assert.AreEqual(1, Row1.CompareTo(Row3));
-            Assert.AreEqual(1, Row1.CompareTo(Row4));
-            Assert.AreEqual(1, Row1.CompareTo(Row5));
+            Assert.AreEqual(-1, Row1.CompareTo(Row2));
+            Assert.AreEqual(-1, Row1.CompareTo(Row3));
+            Assert.AreEqual(-1, Row1.CompareTo(Row4));
+            Assert.AreEqual(-1, Row1.CompareTo(Row5));
 
-            Assert.AreEqual(-1, Row2.CompareTo(Row.Empty));
-            Assert.AreEqual(-1, Row2.CompareTo(Row1));
+            Assert.AreEqual(1, Row2.CompareTo(Row.Empty));
+            Assert.AreEqual(1, Row2.CompareTo(Row1));
             Assert.AreEqual(0, Row2.CompareTo(Row2));
-            Assert.AreEqual(1, Row2.CompareTo(Row3));
-            Assert.AreEqual(1, Row2.CompareTo(Row4));
-            Assert.AreEqual(1, Row2.CompareTo(Row5));
+            Assert.AreEqual(-1, Row2.CompareTo(Row3));
+            Assert.AreEqual(-1, Row2.CompareTo(Row4));
+            Assert.AreEqual(-1, Row2.CompareTo(Row5));
 
-            Assert.AreEqual(-1, Row3.CompareTo(Row.Empty));
-            Assert.AreEqual(-1, Row3.CompareTo(Row1));
-            Assert.AreEqual(-1, Row3.CompareTo(Row2));
+            Assert.AreEqual(1, Row3.CompareTo(Row.Empty));
+            Assert.AreEqual(1, Row3.CompareTo(Row1));
+            Assert.AreEqual(1, Row3.CompareTo(Row2));
             Assert.AreEqual(0, Row3.CompareTo(Row3));
-            Assert.AreEqual(1, Row3.CompareTo(Row4));
-            Assert.AreEqual(1, Row3.CompareTo(Row5));
+            Assert.AreEqual(-1, Row3.CompareTo(Row4));
+            Assert.AreEqual(-1, Row3.CompareTo(Row5));
 
-            Assert.AreEqual(-1, Row4.CompareTo(Row.Empty));
-            Assert.AreEqual(-1, Row4.CompareTo(Row1));
-            Assert.AreEqual(-1, Row4.CompareTo(Row2));
-            Assert.AreEqual(-1, Row4.CompareTo(Row3));
+            Assert.AreEqual(1, Row4.CompareTo(Row.Empty));
+            Assert.AreEqual(1, Row4.CompareTo(Row1));
+            Assert.AreEqual(1, Row4.CompareTo(Row2));
+            Assert.AreEqual(1, Row4.CompareTo(Row3));
             Assert.AreEqual(0, Row4.CompareTo(Row4));
-            Assert.AreEqual(1, Row4.CompareTo(Row5));
+            Assert.AreEqual(-1, Row4.CompareTo(Row5));
 
-            Assert.AreEqual(-1, Row5.CompareTo(Row.Empty));
-            Assert.AreEqual(-1, Row5.CompareTo(Row1));
-            Assert.AreEqual(-1, Row5.CompareTo(Row2));
-            Assert.AreEqual(-1, Row5.CompareTo(Row3));
-            Assert.AreEqual(-1, Row5.CompareTo(Row4));
+            Assert.AreEqual(1, Row5.CompareTo(Row.Empty));
+            Assert.AreEqual(1, Row5.CompareTo(Row1));
+            Assert.AreEqual(1, Row5.CompareTo(Row2));
+            Assert.AreEqual(1, Row5.CompareTo(Row3));
+            Assert.AreEqual(1, Row5.CompareTo(Row4));
             Assert.AreEqual(0, Row5.CompareTo(Row5));
         }
 
