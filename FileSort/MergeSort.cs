@@ -4,6 +4,7 @@ using System.Collections.Concurrent;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Threading;
 
 namespace FileSort
 {
@@ -28,24 +29,24 @@ namespace FileSort
             _sortedFileName = Path.Combine(tempDirectory, "sorted.txt");
         }
 
-        public async Task<string> Run(string filename)
+        public Task<string> Run(string filename)
         {
             // can't spit file if it has zero or one rows
-            if (await TryFileSpit(filename) == false)
+            if (TryFileSpit(filename).Result == false)
             {
                 MoveFileToSortedFileResult(filename);
-                return _sortedFileName;
+                return Task.FromResult(_sortedFileName);
             }
 
             var taskToSplit = Task.Run(() => SplitTasksManager(2));
-            var taskToSort = Task.Run(() => SortTasksManager(2));
-            var taskToMerge = Task.Run(() => MergeTasksManager(4));
+            var taskToSort = Task.Run(() => SortTasksManager(4));
+            var taskToMerge = Task.Run(() => MergeTasksManager(2));
 
             Task.WaitAll(taskToSplit, taskToSort, taskToMerge);
-            return _sortedFileName;
+            return Task.FromResult(_sortedFileName);
         }
 
-        async void SplitTasksManager(int maxTasksCount)
+        void SplitTasksManager(int maxTasksCount)
         {
             List<Task> tasks = new List<Task>(maxTasksCount);
             for (int i = 0; i < maxTasksCount; i++)
@@ -62,17 +63,17 @@ namespace FileSort
 
                     tasks[i] = Task.Run(SplitFiles);
                 }
-                await Task.Delay(TimeSpan.FromSeconds(2));
+                Thread.Sleep(TimeSpan.FromMilliseconds(100));
             }
             while ((_filesToSplit.IsEmpty == true && tasks.All(x => x.IsCompleted == true)) == false);
 
             _splitEnded = true;
         }
-        async void SplitFiles()
+        void SplitFiles()
         {
             while (_filesToSplit.TryPop(out FilePart file))
             {
-                if (await TryFileSpit(file.FileName) == false)
+                if (TryFileSpit(file.FileName).Result == false)
                 {
                     AddFilePart(file);
                 }
@@ -112,12 +113,12 @@ namespace FileSort
 
             _sortEnded = true;
         }
-        async void SortFiles()
+        void SortFiles()
         {
             while (_filesToSort.TryPop(out FilePart file))
             {
                 var insertionSort = new InsertionSort(_tempDirectory);
-                var fileName =  await insertionSort.Run(file.FileName);
+                var fileName =  insertionSort.Run(file.FileName).Result;
                 File.Delete(file.FileName);
                 File.Move(fileName, file.FileName);
                 file.SetSorted();
@@ -262,10 +263,15 @@ namespace FileSort
 
                 }
             }
-
-            AddFilePart (new FilePart(path, lineCount, new FileInfo(path).Length, true));
             File.Delete(filePart1.FileName);
             File.Delete(filePart2.FileName);
+            // filePart1 and filePart2 is empty
+            if (lineCount == 0)
+            {
+                File.Delete(path);
+                return;
+            }
+            AddFilePart(new FilePart(path, lineCount, new FileInfo(path).Length, true));
         }
 
         void AddFilePart(FilePart filePart)
@@ -276,7 +282,6 @@ namespace FileSort
                 return;
             }
 
-            // 2 mb
             if (filePart.FileSize < 1024*20)
             {
                 _filesToSort.Push(filePart);
